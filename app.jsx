@@ -1522,8 +1522,169 @@ function useStageFit() {
   return Math.max(0.76, Math.min(1, (h - 150) / 630));
 }
 
+/* ============================================================
+   WAITLIST
+
+   The site is a prototype running on play credits, so the only thing it
+   can genuinely capture right now is intent. This is that capture.
+
+   Kit (kit.com) does the storing and the sending — free to 10,000
+   subscribers with unlimited broadcasts, and it owns the unsubscribe link
+   and list hygiene that CAN-SPAM requires. Paste the form action URL from
+   a Kit embed below and this starts working. Nothing else to wire up.
+
+   EMAIL ONLY, DELIBERATELY. Collecting phone numbers to text people is
+   governed by the TCPA, which carries $500-$1,500 per message in
+   statutory damages and needs specific written-consent wording. At 500+
+   people that is a real liability, and it should not be built before
+   counsel has signed off on the consent language. See README.
+   ============================================================ */
+const WAITLIST = {
+  /* Kit -> Grow -> Landing Pages & Forms -> your form -> Embed -> HTML.
+     Copy the value of <form action="...">. Live form: ToolCrate Waitlist. */
+  endpoint: "https://app.kit.com/forms/9738747/subscriptions",
+  /* Shown on the form. Keep it accurate — this is the promise being made,
+     and it must not imply that joining is an entry or a chance to win. */
+  promise: "Drop dates, the full tool list, and first access when crates go live.",
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const JOIN_KEY = "tc_waitlist_joined";
+const readJoined = () => {
+  try { return window.localStorage.getItem(JOIN_KEY) === "1"; } catch (e) { return false; }
+};
+const writeJoined = () => {
+  try { window.localStorage.setItem(JOIN_KEY, "1"); } catch (e) { /* private mode — fine */ }
+};
+
+function Waitlist({ open, onClose, source, joined, onJoined }) {
+  const [email, setEmail] = useState("");
+  const [ok18, setOk18] = useState(false);
+  const [state, setState] = useState("idle");   // idle | sending | done | error
+  const [msg, setMsg] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setState(joined ? "done" : "idle");
+    setMsg("");
+    const t = setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 240);
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => { clearTimeout(t); window.removeEventListener("keydown", onKey); };
+  }, [open, joined, onClose]);
+
+  if (!open) return null;
+
+  const submit = async () => {
+    const addr = email.trim();
+    if (!EMAIL_RE.test(addr)) { setState("error"); setMsg("That email address doesn't look right."); return; }
+    if (!ok18)               { setState("error"); setMsg("Please confirm you're 18 or older."); return; }
+    if (!WAITLIST.endpoint)  { setState("error"); setMsg("The list isn't connected yet. See README.md."); return; }
+
+    setState("sending"); setMsg("");
+    const body = new FormData();
+    body.append("email_address", addr);
+    if (source) body.append("fields[source]", source);
+
+    const succeed = () => { writeJoined(); onJoined(); setState("done"); };
+
+    try {
+      const res = await fetch(WAITLIST.endpoint, {
+        method: "POST", body, headers: { Accept: "application/json" },
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      succeed();
+    } catch (err) {
+      /* A TypeError here means the request never completed — almost always
+         a CORS rejection rather than a dead network. The POST itself is a
+         simple request, so it still reaches Kit when replayed opaquely; we
+         just can't read the reply. Replaying beats telling someone the
+         signup failed when it actually landed. Anything else is a real
+         error and gets reported as one. */
+      if (err instanceof TypeError) {
+        try {
+          await fetch(WAITLIST.endpoint, { method: "POST", body, mode: "no-cors" });
+          succeed();
+          return;
+        } catch (e2) { /* fall through to the error below */ }
+      }
+      setState("error");
+      setMsg("Couldn't reach the list just now. Check your connection and try again.");
+    }
+  };
+
+  const done = state === "done";
+
+  return (
+    <div style={S.wlScrim} onClick={onClose} role="dialog" aria-modal="true" aria-label="Join the drop list">
+      <div className="wl-in" style={S.wlPanel} onClick={(e) => e.stopPropagation()}>
+        <button style={S.wlX} onClick={onClose} aria-label="Close">×</button>
+
+        {done ? (
+          <>
+            <div style={S.wlTick} aria-hidden>✓</div>
+            <h3 style={S.wlTitle}>YOU'RE ON THE LIST</h3>
+            <p style={S.wlSub}>
+              Watch for a confirmation email — open it, or the rest won't reach you.
+              Check spam if it isn't there in a few minutes.
+            </p>
+            <button className="press gold" style={S.wlBtn} onClick={onClose}>BACK TO THE CRATES</button>
+          </>
+        ) : (
+          <>
+            <div style={S.wlKicker}>BEFORE THE FIRST DROP</div>
+            <h3 style={S.wlTitle}>GET THE DROP</h3>
+            <p style={S.wlSub}>{WAITLIST.promise}</p>
+
+            <input
+              ref={inputRef}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@email.com"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (state === "error") setState("idle"); }}
+              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              style={{ ...S.wlInput, ...(state === "error" ? { borderColor: "rgba(239,84,80,0.55)" } : null) }}
+            />
+
+            <label style={S.wlCheckRow}>
+              <input
+                type="checkbox"
+                checked={ok18}
+                onChange={(e) => { setOk18(e.target.checked); if (state === "error") setState("idle"); }}
+                style={S.wlCheck}
+              />
+              <span>I'm 18 or older and want ToolCrate updates by email.</span>
+            </label>
+
+            {msg ? <div style={S.wlErr}>{msg}</div> : null}
+
+            <button
+              className="press gold"
+              style={{ ...S.wlBtn, ...(state === "sending" ? { opacity: 0.6, cursor: "wait" } : null) }}
+              onClick={submit}
+              disabled={state === "sending"}
+            >
+              {state === "sending" ? "ADDING YOU…" : "JOIN THE LIST"}
+            </button>
+
+            <p style={S.wlFine}>
+              Unsubscribe any time from any email. Joining is not an entry, a purchase,
+              or a chance to win anything — it only signs you up for updates.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ToolCrate() {
   const fit = useStageFit();
+  const [wl, setWl] = useState(null);            // null = closed, else the source tag
+  const [joined, setJoined] = useState(readJoined);
   const [credits, setCredits] = useState(500);
   const [screen, setScreen] = useState("home");   // home | garage | profile | odds | pick | stage | reveal
   const [tierI, setTierI] = useState(0);
@@ -2043,11 +2204,19 @@ function ToolCrate() {
                     : <b style={{ color: "#7BC08A", letterSpacing: "0.14em" }}>FREE SHIPPING</b>}
                 </div>
                 <button className="link" style={S.oddsLink} onClick={() => { setOddsTier(tier.id); setScreen("odds"); }}>Odds &amp; full tool list</button>
+                <button className="link" style={S.wlLink} onClick={() => setWl("home-" + tier.id)}>
+                  {joined ? "✓ You're on the drop list" : "Get notified when crates drop"}
+                </button>
               </>
             ) : (
               <>
                 <button style={S.ctaLocked} disabled>NOT YET DROPPED</button>
                 <div style={S.lockNote}>Locked until the pool is filled and audited.</div>
+                {/* a locked tier is the highest-intent dead end in the app —
+                    someone who taps it has already decided they want this one */}
+                <button className="press gold" style={{ ...S.cta, marginTop: 14 }} onClick={() => setWl("locked-" + tier.id)}>
+                  {joined ? "✓ ON THE LIST" : "NOTIFY ME AT DROP"}
+                </button>
               </>
             )}
           </div>
@@ -2398,6 +2567,15 @@ function ToolCrate() {
                   RETURN HOME<span style={S.bSub}>view the garage</span>
                 </button>
               </div>
+
+              {/* the beat right after a pull is the one moment someone is
+                  actually excited — and the credits they just spent were not
+                  real, so this is where the honest ask belongs */}
+              {!joined && (
+                <button className="link" style={S.wlRevealLink} onClick={() => setWl("reveal")}>
+                  This crate was a demo — get told when the real ones drop
+                </button>
+              )}
             </div>
           </div>
         </main>
@@ -2476,6 +2654,14 @@ function ToolCrate() {
       })()}
 
       {/* ============ BOTTOM NAV ============ */}
+      <Waitlist
+        open={wl !== null}
+        source={wl || ""}
+        joined={joined}
+        onJoined={() => setJoined(true)}
+        onClose={() => setWl(null)}
+      />
+
       {showNav && (
         <nav style={S.nav}>
           {[
@@ -2539,6 +2725,56 @@ const S = {
   wallet: { display: "flex", alignItems: "center", gap: 8, background: "#1E2228", padding: "6px 8px 6px 12px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)" },
   wAmt: { fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 800, fontSize: 17, color: YEL },
   top: { background: `linear-gradient(155deg,${YEL_HI},${YEL})`, border: "none", color: INK, fontWeight: 800, fontSize: 13, width: 20, height: 20, lineHeight: "18px", cursor: "pointer", borderRadius: 6, padding: 0 },
+
+  /* ---- waitlist ---- */
+  wlScrim: {
+    position: "fixed", inset: 0, zIndex: 60, display: "flex",
+    alignItems: "center", justifyContent: "center", padding: 20,
+    background: "rgba(6,8,11,0.74)", backdropFilter: "blur(9px)",
+  },
+  wlPanel: {
+    position: "relative", width: "100%", maxWidth: 380, textAlign: "center",
+    padding: "34px 26px 24px", borderRadius: 16,
+    background: "linear-gradient(168deg,#1B1F26 0%,#141821 62%,#10131A 100%)",
+    border: "1px solid rgba(255,255,255,0.09)",
+    boxShadow: "0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)",
+    maxHeight: "calc(100dvh - 40px)", overflowY: "auto",
+  },
+  wlX: {
+    position: "absolute", top: 8, right: 10, width: 32, height: 32,
+    background: "none", border: "none", color: "#6B7079", fontSize: 24,
+    cursor: "pointer", lineHeight: 1,
+  },
+  wlKicker: { fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: "0.3em", color: YEL, marginBottom: 8 },
+  wlTitle: { fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 900, fontSize: 32, letterSpacing: "0.05em", margin: "0 0 10px" },
+  wlSub: { fontSize: 13, lineHeight: 1.55, color: "#8B919A", margin: "0 0 18px" },
+  wlInput: {
+    width: "100%", boxSizing: "border-box", padding: "14px 16px", borderRadius: 10,
+    background: "#0D1015", color: "#E9EBEE", fontSize: 16, fontFamily: "inherit",
+    border: "1px solid rgba(255,255,255,0.12)", outline: "none",
+  },
+  wlCheckRow: {
+    display: "flex", alignItems: "flex-start", gap: 9, margin: "14px 2px 4px",
+    fontSize: 12, lineHeight: 1.45, color: "#8B919A", textAlign: "left", cursor: "pointer",
+  },
+  wlCheck: { width: 16, height: 16, marginTop: 1, accentColor: YEL, flexShrink: 0, cursor: "pointer" },
+  wlErr: { fontSize: 12, color: "#EF8A87", margin: "10px 0 0", textAlign: "left" },
+  wlBtn: {
+    background: `linear-gradient(160deg,${YEL_HI},#EFC118 48%,${YEL_DK})`, color: INK, border: "none",
+    padding: "14px 24px", borderRadius: 11, fontFamily: "'Big Shoulders Display',sans-serif",
+    fontWeight: 800, fontSize: 17, letterSpacing: "0.12em", cursor: "pointer",
+    display: "block", width: "100%", marginTop: 16,
+    boxShadow: "0 10px 26px rgba(232,185,15,0.2), inset 0 2px 0 rgba(255,255,255,0.6)",
+  },
+  wlFine: { fontSize: 10.5, lineHeight: 1.5, color: "#5F656C", margin: "14px 0 0" },
+  wlTick: {
+    width: 52, height: 52, borderRadius: 26, margin: "0 auto 14px",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: 26, color: "#7BC08A", border: "1px solid rgba(123,192,138,0.4)",
+    background: "rgba(123,192,138,0.1)",
+  },
+  wlLink: { background: "none", border: "none", color: "#6B7079", margin: "10px auto 0", display: "block", cursor: "pointer", fontSize: 12 },
+  wlRevealLink: { background: "none", border: "none", color: "#8B919A", margin: "16px auto 0", display: "block", cursor: "pointer", fontSize: 12, borderBottom: "1px solid rgba(139,145,154,0.28)", paddingBottom: 2 },
 
   main: { position: "relative", zIndex: 6, maxWidth: 760, margin: "0 auto", padding: "0 20px 108px" },
 
@@ -2967,6 +3203,8 @@ const CSS = `
 ::-webkit-scrollbar { display: none; }
 button:focus-visible { outline: 2px solid rgba(232,185,15,0.8); outline-offset: 2px; }
 
+@keyframes wlIn { from{opacity:0;transform:translateY(14px) scale(.97);} to{opacity:1;transform:none;} }
+.wl-in { animation: wlIn .3s cubic-bezier(.2,.9,.25,1) both; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:none;} }
 .fade { animation: fadeIn .45s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes rowIn { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
