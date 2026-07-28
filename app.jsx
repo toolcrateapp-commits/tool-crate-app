@@ -708,9 +708,20 @@ const ToolArt = memo(function ToolArt({ name, size, color = "#EDEBE6", accent = 
     /* Supplier product shots come on white. On a dark UI a bare white
        rectangle reads as a bug, so the photo sits on a light plate and
        becomes a deliberate product card. */
-    /* Embedded cutouts are already transparent — they need no plate and no
-       blend trick, just a soft contact shadow so they sit in the scene. */
-    const cutout = src.startsWith("data:");
+    /* Cutouts are already transparent — they need no plate and no blend
+       trick, just a soft contact shadow so they sit in the scene.
+
+       Known cutouts: inline data: URIs, and any file in assets/ (every
+       one of those was exported from an embedded cutout, so all 113 have
+       a real alpha channel).
+
+       For an EXTERNAL url that is also transparent, tag it with #cutout:
+         "Milwaukee Pry Bar": "https://cdn.yoursite.com/prybar.webp#cutout",
+       The browser ignores the fragment when fetching, so it costs nothing.
+       Leave it off and the photo gets the white product-card treatment,
+       which is what a supplier shot on white actually wants. */
+    const cutout =
+      src.startsWith("data:") || src.startsWith("assets/") || src.includes("#cutout");
     const img = (
       <img
         src={cutout ? src : sizedPhoto(src, Math.round(size * 1.6))}
@@ -1317,7 +1328,7 @@ const Crate = memo(function Crate({ tier, uid, size = 260, grade = null, lid = 0
 /* ============================================================
    CAROUSEL — unchanged mechanics.
    ============================================================ */
-function Loop({ count, index, setIndex, sfx, step = 250, render, onCenterTap, locked = false, loop = true, paged = false }) {
+function Loop({ count, index, setIndex, sfx, step = 250, render, onCenterTap, locked = false, loop = true, paged = false, height, marginTop }) {
   const [pos, setPos] = useState(index);
   /* settled = at rest on a whole index. Drives the landing grow. */
   const [settled, setSettled] = useState(true);
@@ -1444,7 +1455,11 @@ function Loop({ count, index, setIndex, sfx, step = 250, render, onCenterTap, lo
   }
 
   return (
-    <div ref={wrapRef} style={S.loop} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+    <div ref={wrapRef} style={{
+      ...S.loop,
+      ...(height != null ? { height } : null),
+      ...(marginTop != null ? { marginTop } : null),
+    }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
       {cells.map(({ i, off, a }) => (
         <div key={i}
           style={{
@@ -1486,7 +1501,29 @@ function NavIcon({ kind, color }) {
 }
 
 /* ================= App ================= */
+/* The home stage was sized for a phone held upright. On a laptop the browser
+   chrome eats enough height that the crate, the tier block and the CTA stop
+   fitting together, so the header scrolls away and the crate clips against the
+   top edge. Rather than let the page scroll, the stage scales to whatever
+   height is actually there: full phone-sized design at 780px+, easing down to
+   0.76 on short windows so the whole composition stays on one screen. */
+function useStageFit() {
+  const read = () => (typeof window === "undefined" ? 900 : window.innerHeight);
+  const [h, setH] = useState(read);
+  useEffect(() => {
+    const on = () => setH(read());
+    window.addEventListener("resize", on);
+    window.addEventListener("orientationchange", on);
+    return () => {
+      window.removeEventListener("resize", on);
+      window.removeEventListener("orientationchange", on);
+    };
+  }, []);
+  return Math.max(0.76, Math.min(1, (h - 150) / 630));
+}
+
 function ToolCrate() {
+  const fit = useStageFit();
   const [credits, setCredits] = useState(500);
   const [screen, setScreen] = useState("home");   // home | garage | profile | odds | pick | stage | reveal
   const [tierI, setTierI] = useState(0);
@@ -1919,8 +1956,8 @@ function ToolCrate() {
 
       {/* ============ HOME ============ */}
       {screen === "home" && (
-        <main key="home" className="fade" style={S.main}>
-          <div style={S.stageZone}>
+        <main key="home" className="fade" style={{ ...S.main, ...S.mainHome }}>
+          <div style={{ ...S.stageZone, ...S.stageZoneHome }}>
             {/* warehouse depth behind the crate */}
             <div style={S.homeHaze} />
             {/* volumetric spotlight cone + soft key */}
@@ -1943,7 +1980,9 @@ function ToolCrate() {
               index={tierI}
               setIndex={setTierI}
               sfx={sfx}
-              step={252}
+              step={Math.round(252 * fit)}
+              height={Math.round(268 * fit)}
+              marginTop={Math.round(22 * fit)}
               loop={false}
               paged={true}
               /* tapping the centred crate does the same thing as the BUY CRATE
@@ -1962,7 +2001,7 @@ function ToolCrate() {
                     willChange: "transform",
                   }}>
                     <div className={a < 0.2 ? "crate-float" : ""}>
-                      <Crate tier={t} uid={`h${i}`} size={286} sheen={a < 0.2 && t.id === "starter"} />
+                      <Crate tier={t} uid={`h${i}`} size={Math.round(286 * fit)} sheen={a < 0.2 && t.id === "starter"} />
                     </div>
                   </div>
                 );
@@ -1981,10 +2020,10 @@ function ToolCrate() {
             ))}
           </div>
 
-          <div key={tier.id} className="tier-in" style={S.tierBlock}>
-            <h1 style={S.h1}>{tier.name}</h1>
+          <div key={tier.id} className="tier-in" style={{ ...S.tierBlock, marginTop: Math.round(20 * fit) }}>
+            <h1 style={{ ...S.h1, fontSize: Math.round(44 * fit) }}>{tier.name}</h1>
 
-            <div style={S.specs}>
+            <div style={{ ...S.specs, margin: `${Math.round(20 * fit)}px 0 ${Math.round(22 * fit)}px` }}>
               <div style={S.spec}><span style={S.specV}>{moneyR(tStats.max)}</span><span style={S.specL}>MAX VALUE</span></div>
               <span style={S.specDiv} />
               <div style={S.spec}><span style={S.specV}>{money(tier.price)}</span><span style={S.specL}>BOX PRICE</span></div>
@@ -2502,6 +2541,20 @@ const S = {
   top: { background: `linear-gradient(155deg,${YEL_HI},${YEL})`, border: "none", color: INK, fontWeight: 800, fontSize: 13, width: 20, height: 20, lineHeight: "18px", cursor: "pointer", borderRadius: 6, padding: 0 },
 
   main: { position: "relative", zIndex: 6, maxWidth: 760, margin: "0 auto", padding: "0 20px 108px" },
+
+  /* Home is a single composed screen, not a scrolling document, so it centres
+     itself in whatever space is left between the header and the tab bar.
+     minHeight rather than height: if the content ever does outgrow the window
+     the block simply grows and the page scrolls normally, instead of centring
+     and putting the top of the crate somewhere unreachable. */
+  mainHome: {
+    minHeight: "calc(100dvh - 172px)",
+    display: "flex", flexDirection: "column", justifyContent: "center",
+    paddingBottom: 96,
+  },
+  /* the carousel blurs and fades neighbours, so it needs to bleed past the
+     760px column — clipping it at the column edge cuts the falloff short */
+  stageZoneHome: { overflow: "visible" },
 
   /* home selection zone + spotlight */
   stageZone: { position: "relative", overflow: "hidden" },
