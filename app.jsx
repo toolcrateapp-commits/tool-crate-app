@@ -1668,6 +1668,10 @@ function Waitlist({ open, onClose, source, joined, onJoined }) {
                   Giving away {GIVEAWAY.count} {GIVEAWAY.prize} when the first drop goes live.
                   Winners drawn at random from this list. Joining is free.
                 </p>
+                <p style={S.wlPreview}>
+                  The site is a working preview — crates aren't on sale yet and the
+                  credits inside are simulated. The giveaway and the list are real.
+                </p>
               </>
             ) : (
               <>
@@ -2174,11 +2178,21 @@ function ToolCrate() {
         <div style={S.hRight}>
           <button className="press" style={S.mute} onClick={() => setSound((s) => !s)} aria-label={sound ? "Mute sound" : "Unmute sound"}>{sound ? "◉" : "○"}</button>
           <div style={S.wallet}>
+            <span style={S.wDemo}>DEMO</span>
             <span style={S.wAmt}>${credits}</span>
-            <button className="press" style={S.top} onClick={() => setCredits((c) => c + 250)} aria-label="Add credits">+</button>
+            <button className="press" style={S.top} onClick={() => setCredits((c) => c + 250)} aria-label="Add demo credits">+</button>
           </div>
         </div>
       </header>
+
+      {/* Nothing on this site is purchasable and nothing ships. A buy button
+          next to a dollar figure is a purchase flow whether or not it charges,
+          so this says so once, everywhere, before anyone taps anything —
+          rather than only after a pull, which is too late to have been honest. */}
+      <div style={S.simBar}>
+        <span style={S.simDot} aria-hidden />
+        PREVIEW · NOTHING IS FOR SALE YET · CREDITS AND PULLS ARE SIMULATED
+      </div>
 
       {/* ============ HOME ============ */}
       {screen === "home" && (
@@ -2294,6 +2308,12 @@ function ToolCrate() {
           <div style={S.pageHead}>
             <h2 style={S.h2}>GARAGE</h2>
             {garage.length > 0 && <span style={S.gCount}>{garage.length}</span>}
+          </div>
+
+          {/* a wall of tools you "own" is the easiest thing here to misread */}
+          <div style={S.simNote}>
+            A preview of what a real collection would look like. These pulls are
+            simulated — nothing here has been bought, won, or shipped.
           </div>
 
           {garage.length === 0 ? (
@@ -2636,11 +2656,18 @@ function ToolCrate() {
               {/* the beat right after a pull is the one moment someone is
                   actually excited — and the credits they just spent were not
                   real, so this is where the honest ask belongs */}
+              {/* shown on every pull, joined or not — the disclosure is not
+                  conditional on whether there is still something to sell them */}
+              <div style={{ ...S.simNote, margin: "18px auto 0" }}>
+                Simulated pull. No tool ships and nothing was charged — this is a
+                preview of the real drop.
+              </div>
+
               {!joined && (
                 <button className="link" style={S.wlRevealLink} onClick={() => setWl("reveal")}>
                   {GIVEAWAY.enabled
-                    ? `This crate was a demo — enter free to win 1 of ${GIVEAWAY.count} real ones`
-                    : "This crate was a demo — get told when the real ones drop"}
+                    ? `Enter free to win 1 of ${GIVEAWAY.count} real ones`
+                    : "Get told when the real ones drop"}
                 </button>
               )}
             </div>
@@ -2789,6 +2816,31 @@ const S = {
   logoT: { fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: "0.14em" },
   hRight: { display: "flex", alignItems: "center", gap: 8 },
   mute: { width: 30, height: 30, borderRadius: 8, background: "#1E2228", border: "1px solid rgba(255,255,255,0.07)", color: "#8B919A", fontSize: 11, cursor: "pointer" },
+  /* ---- simulation disclosure ---- */
+  simBar: {
+    position: "relative", zIndex: 9,
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+    padding: "7px 16px", textAlign: "center",
+    fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 700,
+    fontSize: 9.5, letterSpacing: "0.18em", color: "#96897A",
+    background: "rgba(232,185,15,0.05)",
+    borderBottom: "1px solid rgba(232,185,15,0.13)",
+  },
+  simDot: {
+    width: 5, height: 5, borderRadius: 3, flexShrink: 0,
+    background: YEL, boxShadow: `0 0 7px ${YEL}`,
+  },
+  wDemo: {
+    fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 800,
+    fontSize: 8, letterSpacing: "0.18em", color: "#6B7079",
+    border: "1px solid rgba(255,255,255,0.12)", borderRadius: 4,
+    padding: "2px 4px",
+  },
+  simNote: {
+    fontSize: 11.5, lineHeight: 1.5, color: "#6B7079",
+    textAlign: "center", margin: "0 auto 18px", maxWidth: 420,
+  },
+
   wallet: { display: "flex", alignItems: "center", gap: 8, background: "#1E2228", padding: "6px 8px 6px 12px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)" },
   wAmt: { fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 800, fontSize: 17, color: YEL },
   top: { background: `linear-gradient(155deg,${YEL_HI},${YEL})`, border: "none", color: INK, fontWeight: 800, fontSize: 13, width: 20, height: 20, lineHeight: "18px", cursor: "pointer", borderRadius: 6, padding: 0 },
@@ -2818,6 +2870,11 @@ const S = {
     fontSize: "clamp(38px, 11vw, 54px)", lineHeight: 0.92, letterSpacing: "0.02em",
     margin: "0 0 14px", color: "#FFFDF2",
     textShadow: "0 0 34px rgba(232,185,15,0.28)",
+  },
+  wlPreview: {
+    fontSize: 11.5, lineHeight: 1.55, color: "#8B7F6E", margin: "0 0 18px",
+    padding: "9px 12px", borderRadius: 8,
+    background: "rgba(232,185,15,0.06)", border: "1px solid rgba(232,185,15,0.16)",
   },
   wlSkip: {
     background: "none", border: "none", color: "#5F656C", fontSize: 12,
