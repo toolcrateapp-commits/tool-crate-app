@@ -1548,13 +1548,39 @@ const WAITLIST = {
   promise: "Drop dates, the full tool list, and first access when crates go live.",
 };
 
+/* The launch giveaway. A no-purchase sweepstakes: entry costs nothing, so
+   there is no consideration and it is not a lottery. Legal on that basis —
+   but it needs published Official Rules before it goes in front of an
+   audience, and rulesUrl below is what points at them.
+
+   ARV is stated as the crate price, not the pull value. That matches the
+   position already taken on sales tax (value = price paid), and it keeps
+   the total pool at $1,000 — well under the $5,000 NY/FL registration
+   trigger. Valuing 20 crates at the top pull instead would be ~$7,960 and
+   would cross it, so the rules must state ARV per crate explicitly. */
+const GIVEAWAY = {
+  enabled: true,
+  count: 20,
+  prize: "Builder crates",
+  /* Publish rules, then paste the URL. Until then the terms below still
+     appear in short form, which is the minimum, not a substitute. */
+  rulesUrl: "",
+};
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const JOIN_KEY = "tc_waitlist_joined";
+const SEEN_KEY = "tc_waitlist_seen";
 const readJoined = () => {
   try { return window.localStorage.getItem(JOIN_KEY) === "1"; } catch (e) { return false; }
 };
 const writeJoined = () => {
   try { window.localStorage.setItem(JOIN_KEY, "1"); } catch (e) { /* private mode — fine */ }
+};
+const readSeen = () => {
+  try { return window.localStorage.getItem(SEEN_KEY) === "1"; } catch (e) { return true; }
+};
+const writeSeen = () => {
+  try { window.localStorage.setItem(SEEN_KEY, "1"); } catch (e) { /* private mode — fine */ }
 };
 
 function Waitlist({ open, onClose, source, joined, onJoined }) {
@@ -1624,18 +1650,32 @@ function Waitlist({ open, onClose, source, joined, onJoined }) {
         {done ? (
           <>
             <div style={S.wlTick} aria-hidden>✓</div>
-            <h3 style={S.wlTitle}>YOU'RE ON THE LIST</h3>
+            <h3 style={S.wlTitle}>{GIVEAWAY.enabled ? "YOU'RE ENTERED" : "YOU'RE ON THE LIST"}</h3>
             <p style={S.wlSub}>
               Watch for a confirmation email — open it, or the rest won't reach you.
               Check spam if it isn't there in a few minutes.
+              {GIVEAWAY.enabled ? " Winners are drawn after the first drop and told by email." : ""}
             </p>
             <button className="press gold" style={S.wlBtn} onClick={onClose}>BACK TO THE CRATES</button>
           </>
         ) : (
           <>
-            <div style={S.wlKicker}>BEFORE THE FIRST DROP</div>
-            <h3 style={S.wlTitle}>GET THE DROP</h3>
-            <p style={S.wlSub}>{WAITLIST.promise}</p>
+            {GIVEAWAY.enabled ? (
+              <>
+                <div style={S.wlBadge}>NO PURCHASE NECESSARY</div>
+                <h3 style={S.wlBig}>{GIVEAWAY.count} FREE<br />{GIVEAWAY.prize.toUpperCase()}</h3>
+                <p style={S.wlSub}>
+                  Giving away {GIVEAWAY.count} {GIVEAWAY.prize} when the first drop goes live.
+                  Winners drawn at random from this list. Joining is free.
+                </p>
+              </>
+            ) : (
+              <>
+                <div style={S.wlKicker}>BEFORE THE FIRST DROP</div>
+                <h3 style={S.wlTitle}>GET THE DROP</h3>
+                <p style={S.wlSub}>{WAITLIST.promise}</p>
+              </>
+            )}
 
             <input
               ref={inputRef}
@@ -1667,13 +1707,28 @@ function Waitlist({ open, onClose, source, joined, onJoined }) {
               onClick={submit}
               disabled={state === "sending"}
             >
-              {state === "sending" ? "ADDING YOU…" : "JOIN THE LIST"}
+              {state === "sending" ? "ADDING YOU…" : GIVEAWAY.enabled ? "ENTER FREE" : "JOIN THE LIST"}
             </button>
 
-            <p style={S.wlFine}>
-              Unsubscribe any time from any email. Joining is not an entry, a purchase,
-              or a chance to win anything — it only signs you up for updates.
-            </p>
+            <button className="link" style={S.wlSkip} onClick={onClose}>
+              No thanks — just let me look around
+            </button>
+
+            {GIVEAWAY.enabled ? (
+              <p style={S.wlFine}>
+                No purchase necessary. Open to US residents 18+, excluding WA and ID.
+                {" "}{GIVEAWAY.count} winners selected at random after the first drop and
+                notified by email. Approximate retail value $50 per crate; contents vary.
+                A purchase will not improve your chances of winning.
+                {GIVEAWAY.rulesUrl ? <> <a href={GIVEAWAY.rulesUrl} style={S.wlRules} target="_blank" rel="noopener noreferrer">Official Rules</a>.</> : null}
+                {" "}Unsubscribe any time.
+              </p>
+            ) : (
+              <p style={S.wlFine}>
+                Unsubscribe any time from any email. Joining is not an entry, a purchase,
+                or a chance to win anything — it only signs you up for updates.
+              </p>
+            )}
           </>
         )}
       </div>
@@ -1685,6 +1740,16 @@ function ToolCrate() {
   const fit = useStageFit();
   const [wl, setWl] = useState(null);            // null = closed, else the source tag
   const [joined, setJoined] = useState(readJoined);
+
+  /* First visit gets the offer full-screen — it is the whole point of the
+     site right now. Once dismissed or joined it never auto-opens again, and
+     the quieter entry points stay available. Delayed a beat so the crate
+     paints first: the crate is the hook, the offer is the ask. */
+  useEffect(() => {
+    if (readSeen() || readJoined()) return;
+    const t = setTimeout(() => { setWl("intro"); writeSeen(); }, 1400);
+    return () => clearTimeout(t);
+  }, []);
   const [credits, setCredits] = useState(500);
   const [screen, setScreen] = useState("home");   // home | garage | profile | odds | pick | stage | reveal
   const [tierI, setTierI] = useState(0);
@@ -2205,7 +2270,7 @@ function ToolCrate() {
                 </div>
                 <button className="link" style={S.oddsLink} onClick={() => { setOddsTier(tier.id); setScreen("odds"); }}>Odds &amp; full tool list</button>
                 <button className="link" style={S.wlLink} onClick={() => setWl("home-" + tier.id)}>
-                  {joined ? "✓ You're on the drop list" : "Get notified when crates drop"}
+                  {joined ? "✓ You're entered" : GIVEAWAY.enabled ? `Enter free — ${GIVEAWAY.count} crates given away at drop` : "Get notified when crates drop"}
                 </button>
               </>
             ) : (
@@ -2215,7 +2280,7 @@ function ToolCrate() {
                 {/* a locked tier is the highest-intent dead end in the app —
                     someone who taps it has already decided they want this one */}
                 <button className="press gold" style={{ ...S.cta, marginTop: 14 }} onClick={() => setWl("locked-" + tier.id)}>
-                  {joined ? "✓ ON THE LIST" : "NOTIFY ME AT DROP"}
+                  {joined ? "✓ ENTERED" : GIVEAWAY.enabled ? "ENTER FREE GIVEAWAY" : "NOTIFY ME AT DROP"}
                 </button>
               </>
             )}
@@ -2573,7 +2638,9 @@ function ToolCrate() {
                   real, so this is where the honest ask belongs */}
               {!joined && (
                 <button className="link" style={S.wlRevealLink} onClick={() => setWl("reveal")}>
-                  This crate was a demo — get told when the real ones drop
+                  {GIVEAWAY.enabled
+                    ? `This crate was a demo — enter free to win 1 of ${GIVEAWAY.count} real ones`
+                    : "This crate was a demo — get told when the real ones drop"}
                 </button>
               )}
             </div>
@@ -2729,17 +2796,34 @@ const S = {
   /* ---- waitlist ---- */
   wlScrim: {
     position: "fixed", inset: 0, zIndex: 60, display: "flex",
-    alignItems: "center", justifyContent: "center", padding: 20,
-    background: "rgba(6,8,11,0.74)", backdropFilter: "blur(9px)",
+    alignItems: "center", justifyContent: "center", padding: 16,
+    background: "rgba(6,8,11,0.88)", backdropFilter: "blur(12px)",
   },
   wlPanel: {
-    position: "relative", width: "100%", maxWidth: 380, textAlign: "center",
-    padding: "34px 26px 24px", borderRadius: 16,
+    position: "relative", width: "100%", maxWidth: 440, textAlign: "center",
+    padding: "44px 30px 30px", borderRadius: 18,
     background: "linear-gradient(168deg,#1B1F26 0%,#141821 62%,#10131A 100%)",
     border: "1px solid rgba(255,255,255,0.09)",
     boxShadow: "0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)",
-    maxHeight: "calc(100dvh - 40px)", overflowY: "auto",
+    maxHeight: "calc(100dvh - 32px)", overflowY: "auto",
   },
+  wlBadge: {
+    display: "inline-block", fontFamily: "'Big Shoulders Display',sans-serif",
+    fontWeight: 800, fontSize: 10, letterSpacing: "0.26em", color: "#7BC08A",
+    border: "1px solid rgba(123,192,138,0.35)", background: "rgba(123,192,138,0.08)",
+    borderRadius: 100, padding: "5px 12px", marginBottom: 16,
+  },
+  wlBig: {
+    fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 900,
+    fontSize: "clamp(38px, 11vw, 54px)", lineHeight: 0.92, letterSpacing: "0.02em",
+    margin: "0 0 14px", color: "#FFFDF2",
+    textShadow: "0 0 34px rgba(232,185,15,0.28)",
+  },
+  wlSkip: {
+    background: "none", border: "none", color: "#5F656C", fontSize: 12,
+    cursor: "pointer", display: "block", margin: "14px auto 0",
+  },
+  wlRules: { color: "#8B919A", textDecoration: "underline" },
   wlX: {
     position: "absolute", top: 8, right: 10, width: 32, height: 32,
     background: "none", border: "none", color: "#6B7079", fontSize: 24,
