@@ -1583,6 +1583,99 @@ const writeSeen = () => {
   try { window.localStorage.setItem(SEEN_KEY, "1"); } catch (e) { /* private mode — fine */ }
 };
 
+/* ============================================================
+   SOCIALS
+   Fill in the handle for each account you actually run. Anything
+   left as "" is skipped entirely — no dead icon, no link to a
+   page that does not exist. Handles go in without the @.
+   ============================================================ */
+const SOCIALS = {
+  tiktok:    "toolcrateapp",
+  instagram: "toolcrateapp",
+  youtube:   "",   // channel handle, without the @
+  x:         "",
+  facebook:  "",   // page name from the URL
+};
+
+const SOCIAL_META = {
+  tiktok:    { label: "TikTok",    url: (h) => `https://www.tiktok.com/@${h}` },
+  instagram: { label: "Instagram", url: (h) => `https://instagram.com/${h}` },
+  youtube:   { label: "YouTube",   url: (h) => `https://youtube.com/@${h}` },
+  x:         { label: "X",         url: (h) => `https://x.com/${h}` },
+  facebook:  { label: "Facebook",  url: (h) => `https://facebook.com/${h}` },
+};
+
+const activeSocials = () =>
+  Object.keys(SOCIAL_META).filter((k) => SOCIALS[k] && SOCIALS[k].trim());
+
+function SocialIcon({ kind, size = 20, color = "currentColor" }) {
+  const c = { fill: color };
+  if (kind === "tiktok") return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path {...c} d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.59 2.59 0 0 1 0-5.18c.27 0 .52.04.76.12v-3.2a5.98 5.98 0 0 0-.76-.05 5.72 5.72 0 1 0 5.72 5.72V9.01a7.35 7.35 0 0 0 4.29 1.38V7.3a4.29 4.29 0 0 1-3.27-1.48z" />
+    </svg>
+  );
+  if (kind === "instagram") return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path {...c} d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.8 3.8 0 0 1-1.38-.9 3.8 3.8 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16zm0 1.98c-3.14 0-3.51.01-4.75.07-1.15.05-1.77.24-2.18.4-.55.22-.94.47-1.35.88-.41.41-.66.8-.88 1.35-.16.41-.35 1.03-.4 2.18-.06 1.24-.07 1.61-.07 4.75s.01 3.51.07 4.75c.05 1.15.24 1.77.4 2.18.22.55.47.94.88 1.35.41.41.8.66 1.35.88.41.16 1.03.35 2.18.4 1.24.06 1.61.07 4.75.07s3.51-.01 4.75-.07c1.15-.05 1.77-.24 2.18-.4.55-.22.94-.47 1.35-.88.41-.41.66-.8.88-1.35.16-.41.35-1.03.4-2.18.06-1.24.07-1.61.07-4.75s-.01-3.51-.07-4.75c-.05-1.15-.24-1.77-.4-2.18a3.6 3.6 0 0 0-.88-1.35 3.6 3.6 0 0 0-1.35-.88c-.41-.16-1.03-.35-2.18-.4-1.24-.06-1.61-.07-4.75-.07zm0 3.37a4.49 4.49 0 1 1 0 8.98 4.49 4.49 0 0 1 0-8.98zm0 7.4a2.91 2.91 0 1 0 0-5.82 2.91 2.91 0 0 0 0 5.82zm5.72-7.6a1.05 1.05 0 1 1-2.1 0 1.05 1.05 0 0 1 2.1 0z" />
+    </svg>
+  );
+  if (kind === "youtube") return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path {...c} d="M21.58 7.19a2.5 2.5 0 0 0-1.76-1.77C18.25 5 12 5 12 5s-6.25 0-7.82.42A2.5 2.5 0 0 0 2.42 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .42 4.81 2.5 2.5 0 0 0 1.76 1.77C5.75 19 12 19 12 19s6.25 0 7.82-.42a2.5 2.5 0 0 0 1.76-1.77A26 26 0 0 0 22 12a26 26 0 0 0-.42-4.81zM10 15.02V8.98L15.2 12 10 15.02z" />
+    </svg>
+  );
+  if (kind === "x") return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path {...c} d="M17.53 3h3.06l-6.69 7.64L21.75 21h-6.16l-4.82-6.3L5.25 21H2.19l7.15-8.17L2.25 3h6.31l4.36 5.77L17.53 3zm-1.07 16.14h1.69L7.62 4.77H5.8l10.66 14.37z" />
+    </svg>
+  );
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path {...c} d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z" />
+    </svg>
+  );
+}
+
+function GiftIcon({ size = 15 }) {
+  const p = { fill: "none", stroke: YEL, strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round" };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path {...p} d="M3.5 11.5h17v8.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" />
+      <path {...p} d="M2.5 7.5h19v4h-19z" />
+      <path {...p} d="M12 7.5v13.5" />
+      <path {...p} d="M12 7.5S10.8 3 8.4 3a2.2 2.2 0 0 0 0 4.5z" />
+      <path {...p} d="M12 7.5S13.2 3 15.6 3a2.2 2.2 0 0 1 0 4.5z" />
+    </svg>
+  );
+}
+
+/* Row used on Home — compact, sits under the CTA. */
+function SocialRow({ compact }) {
+  const keys = activeSocials();
+  if (!keys.length) return null;
+  return (
+    <div style={compact ? S.socRowCompact : S.socRow}>
+      {!compact && <div style={S.socHead}>FOLLOW THE BUILD</div>}
+      <div style={S.socIcons}>
+        {keys.map((k) => (
+          <a
+            key={k}
+            href={SOCIAL_META[k].url(SOCIALS[k].replace(/^@/, ""))}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={SOCIAL_META[k].label}
+            style={S.socBtn}
+            className="press"
+          >
+            <SocialIcon kind={k} size={compact ? 18 : 21} color="#C9CFD6" />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Waitlist({ open, onClose, source, joined, onJoined }) {
   const [email, setEmail] = useState("");
   const [ok18, setOk18] = useState(false);
@@ -1744,16 +1837,6 @@ function ToolCrate() {
   const fit = useStageFit();
   const [wl, setWl] = useState(null);            // null = closed, else the source tag
   const [joined, setJoined] = useState(readJoined);
-
-  /* First visit gets the offer full-screen — it is the whole point of the
-     site right now. Once dismissed or joined it never auto-opens again, and
-     the quieter entry points stay available. Delayed a beat so the crate
-     paints first: the crate is the hook, the offer is the ask. */
-  useEffect(() => {
-    if (readSeen() || readJoined()) return;
-    const t = setTimeout(() => { setWl("intro"); writeSeen(); }, 1400);
-    return () => clearTimeout(t);
-  }, []);
   const [credits, setCredits] = useState(500);
   const [screen, setScreen] = useState("home");   // home | garage | profile | odds | pick | stage | reveal
   const [tierI, setTierI] = useState(0);
@@ -1762,6 +1845,18 @@ function ToolCrate() {
   const [garage, setGarage] = useState([]);
   const [sound, setSound] = useState(true);
   const sfx = useSfx(sound);
+
+  /* The ask waits for the first pull. Someone who has just opened a crate
+     understands what this is and has felt the good part of it; someone who
+     landed one second ago has not, and a modal is the quickest way to lose
+     them. Delayed again past the reveal so they read their tool first —
+     the offer follows the payoff, it does not interrupt it. Fires once. */
+  useEffect(() => {
+    if (screen !== "reveal") return;
+    if (readSeen() || readJoined()) return;
+    const t = setTimeout(() => { setWl("first-pull"); writeSeen(); }, 2600);
+    return () => clearTimeout(t);
+  }, [screen]);
 
   const [oddsTier, setOddsTier] = useState("starter");
   const [rackI, setRackI] = useState(0);
@@ -2283,9 +2378,20 @@ function ToolCrate() {
                     : <b style={{ color: "#7BC08A", letterSpacing: "0.14em" }}>FREE SHIPPING</b>}
                 </div>
                 <button className="link" style={S.oddsLink} onClick={() => { setOddsTier(tier.id); setScreen("odds"); }}>Odds &amp; full tool list</button>
-                <button className="link" style={S.wlLink} onClick={() => setWl("home-" + tier.id)}>
-                  {joined ? "✓ You're entered" : GIVEAWAY.enabled ? `Enter free — ${GIVEAWAY.count} crates given away at drop` : "Get notified when crates drop"}
+                <button
+                  className={joined ? "press" : "press give-pulse"}
+                  style={joined ? S.giveBtnDone : S.giveBtn}
+                  onClick={() => setWl("home-" + tier.id)}
+                >
+                  <span style={joined ? S.giveIconDone : S.giveIcon} aria-hidden>
+                    {joined ? "✓" : <GiftIcon />}
+                  </span>
+                  <span style={S.giveTxt}>
+                    {joined ? "You're entered" : GIVEAWAY.enabled ? `Enter free — ${GIVEAWAY.count} crates given away at drop` : "Get notified when crates drop"}
+                  </span>
+                  {!joined && <span style={S.giveChev} aria-hidden>›</span>}
                 </button>
+                <SocialRow compact />
               </>
             ) : (
               <>
@@ -2432,6 +2538,8 @@ function ToolCrate() {
               <div style={S.profSub}>DROP 001 · BUILDER ACCESS</div>
             </div>
           </div>
+
+          <SocialRow />
 
           <div style={S.statRow}>
             <div style={S.statBox}>
@@ -2917,6 +3025,55 @@ const S = {
   wlLink: { background: "none", border: "none", color: "#6B7079", margin: "10px auto 0", display: "block", cursor: "pointer", fontSize: 12 },
   wlRevealLink: { background: "none", border: "none", color: "#8B919A", margin: "16px auto 0", display: "block", cursor: "pointer", fontSize: 12, borderBottom: "1px solid rgba(139,145,154,0.28)", paddingBottom: 2 },
 
+  /* ---- socials ---- */
+  socRowCompact: { display: "flex", justifyContent: "center", marginTop: 18 },
+  socRow: { marginTop: 26, marginBottom: 6, textAlign: "center" },
+  socHead: {
+    fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 800,
+    fontSize: 10, letterSpacing: "0.26em", color: "#6B7079", marginBottom: 12,
+  },
+  socIcons: { display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" },
+  socBtn: {
+    width: 42, height: 42, borderRadius: 11,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: "#1B1F26", border: "1px solid rgba(255,255,255,0.08)",
+    textDecoration: "none", cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+  },
+
+  /* ---- giveaway banner ---- */
+  giveBtn: {
+    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+    width: "100%", maxWidth: 340, margin: "16px auto 0",
+    padding: "12px 13px", borderRadius: 12, textAlign: "left",
+    background: "linear-gradient(150deg,rgba(232,185,15,0.15),rgba(232,185,15,0.05) 62%,rgba(232,185,15,0.02))",
+    border: "1px solid rgba(232,185,15,0.34)",
+  },
+  giveBtnDone: {
+    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+    width: "100%", maxWidth: 340, margin: "16px auto 0",
+    padding: "12px 13px", borderRadius: 12, textAlign: "left",
+    background: "rgba(123,192,138,0.07)",
+    border: "1px solid rgba(123,192,138,0.32)",
+    boxShadow: "none",
+  },
+  giveIcon: {
+    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: "rgba(232,185,15,0.13)", border: "1px solid rgba(232,185,15,0.28)",
+  },
+  giveIconDone: {
+    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: "rgba(123,192,138,0.13)", border: "1px solid rgba(123,192,138,0.3)",
+    color: "#7BC08A", fontSize: 15,
+  },
+  giveTxt: {
+    flex: 1, fontSize: 12.5, lineHeight: 1.35, color: "#D6DBE1",
+    letterSpacing: "0.01em",
+  },
+  giveChev: { color: YEL, fontSize: 20, lineHeight: 1, flexShrink: 0, marginRight: 2 },
+
   main: { position: "relative", zIndex: 6, maxWidth: 760, margin: "0 auto", padding: "0 20px 108px" },
 
   /* Home is a single composed screen, not a scrolling document, so it centres
@@ -3344,6 +3501,17 @@ const CSS = `
 ::-webkit-scrollbar { display: none; }
 button:focus-visible { outline: 2px solid rgba(232,185,15,0.8); outline-offset: 2px; }
 
+/* A slow breath, not a flash. Enough to catch the eye on a screen that is
+   otherwise still — no countdown, no urgency, nothing the brief calls a
+   dark pattern. Respects reduced-motion. */
+@keyframes givePulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(232,185,15,0.20), 0 6px 20px rgba(0,0,0,0.30); }
+  50%     { box-shadow: 0 0 0 6px rgba(232,185,15,0.00), 0 6px 20px rgba(0,0,0,0.30); }
+}
+.give-pulse { animation: givePulse 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .give-pulse { animation: none; box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+}
 @keyframes wlIn { from{opacity:0;transform:translateY(14px) scale(.97);} to{opacity:1;transform:none;} }
 .wl-in { animation: wlIn .3s cubic-bezier(.2,.9,.25,1) both; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:none;} }
